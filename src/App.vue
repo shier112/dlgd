@@ -178,7 +178,7 @@ const cardIsChild = computed(() => {
 })
 
 // 点击卡片
-const addToPlace = async (item,i,index,status,storeObj) => {
+const addToPlace = (item,i,index,status,storeObj) => {
   if(status) return
   const cache = {}
   lastItem.value = storeObj ? {} : {...item,i}
@@ -190,7 +190,7 @@ const addToPlace = async (item,i,index,status,storeObj) => {
       cache[e.icon] = [e]
     }
   })
-  await setTimeSync(100)
+  // await setTimeSync(100)
   Object.keys(cache).forEach(key => {
     if(cache[key].length === 3) {
       delete cache[key]
