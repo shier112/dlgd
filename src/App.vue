@@ -1,5 +1,6 @@
 <script setup>
 import { ref,computed } from 'vue'
+const FILE_KEY = 'GAME_FILE'
 const level = ref(1)
 const isPlay = ref(false)
 const isOut = ref(false)
@@ -177,7 +178,7 @@ const cardIsChild = computed(() => {
 })
 
 // 点击卡片
-const addToPlace = (item,i,index,status,storeObj) => {
+const addToPlace = async (item,i,index,status,storeObj) => {
   if(status) return
   const cache = {}
   lastItem.value = storeObj ? {} : {...item,i}
@@ -189,6 +190,7 @@ const addToPlace = (item,i,index,status,storeObj) => {
       cache[e.icon] = [e]
     }
   })
+  await setTimeSync(100)
   Object.keys(cache).forEach(key => {
     if(cache[key].length === 3) {
       delete cache[key]
@@ -211,10 +213,20 @@ const addToPlace = (item,i,index,status,storeObj) => {
     return isOut.value = true
   }
   if(cardList.value.filter(e => e.length).length === 0 && storeList.value.filter(e => (e || []).length).length === 0) {
+    showToast('进入下一关,难度飙升',2000)
     level.value++
     resetMap()
   }
 }
+
+const setTimeSync = (time = 300) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve()
+    },time)
+  })
+}
+
 const lastItem = ref({})
 // 上移
 const onUpcard = () => {
@@ -251,6 +263,53 @@ const onRandom = () => {
     })
   })
 }
+
+const isToast = ref(false)
+const toastText = ref('')
+const showToast = (text = '',duration = 1000) => {
+  toastText.value = text
+  isToast.value = true
+  setTimeout(() => {
+    isToast.value = false
+  },duration)
+}
+
+const isSetup = ref(false)
+// 设置
+const onSetup = () => {
+  isSetup.value = !isSetup.value
+}
+
+const isFile = ref(false)
+isFile.value = Boolean(localStorage.getItem(FILE_KEY))
+// 存档
+const saveFile = () => {
+  localStorage.setItem(FILE_KEY,JSON.stringify({
+    level: level.value,
+    cardList: cardList.value,
+    storeList: storeList.value,
+    placeList: placeList.value,
+    lastItem: lastItem.value,
+  }))
+  isFile.value = true
+  showToast('存档成功!')
+}
+
+const clearFile = () => {
+  localStorage.removeItem(FILE_KEY)
+  isFile.value = false
+  showToast('清除成功!')
+}
+
+const nextPlay = () => {
+  const gameObj = JSON.parse(localStorage.getItem(FILE_KEY))
+  level.value = gameObj.level
+  cardList.value = gameObj.cardList
+  storeList.value = gameObj.storeList
+  placeList.value = gameObj.placeList
+  lastItem.value = gameObj.lastItem
+  isPlay.value = true
+}
 </script>
 
 <template>
@@ -258,9 +317,10 @@ const onRandom = () => {
     <p class="title">叮了个当</p>
     <template v-if="isPlay">
       <p class="desc">第{{level}}关</p>
+      <p class="setup" @click="onSetup">⚙</p>
       <div class="map">
         <template v-for="(list,i) in cardList" :key="i">
-          <template v-for="(item,index) in list" :key="item.id || index">
+          <template v-for="(item,index) in list" :key="item.id">
             <div class="card" @click="addToPlace(item,i,index,cardIsChild(item,i))" :class="{cardMask: cardIsChild(item,i)}" :style="cardStyle(item,i)">{{item.icon}}</div>
           </template>
         </template>
@@ -289,6 +349,14 @@ const onRandom = () => {
           <div class="outText" @click="onQuit">退出游戏</div>
         </div>
       </div>
+      <div class="out" v-if="isSetup">
+        <div class="outBox">
+          <span class="outClose" @click="isSetup = !isSetup">关闭</span>
+          <p class="outTitle">设置</p>
+          <div class="outText" @click="saveFile">存档</div>
+          <div class="outText" @click="clearFile">清除存档</div>
+        </div>
+      </div>
     </template>
     <template v-else>
       <div class="rank">
@@ -303,8 +371,14 @@ const onRandom = () => {
           </template>
         </div>
       </div>
-      <div class="btn" @click="onPlay">开始游戏</div>
+      <div class="footer">
+        <div class="btn" @click="onPlay">开始游戏</div>
+        <div class="btn" v-if="isFile" @click="nextPlay">继续游戏</div>
+      </div>
     </template>
+    <div class="toast" v-if="isToast">
+      <span class="toastText">{{toastText}}</span>
+    </div>
   </div>
 </template>
 
@@ -352,6 +426,16 @@ body {
   color: #333;
   font-weight: bold;
 }
+.setup {
+  font-size: 30px;
+  text-shadow: 0 2px 0px #000;
+  color: #fff;
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  user-select: none;
+  cursor: pointer;
+}
 
 .rank {
   flex: 1;
@@ -392,16 +476,28 @@ body {
   font-size: 14px;
   color: #fff;
 }
+
+.footer {
+  width: 280px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.footer .btn+.btn {
+  margin-left: 10px;
+}
+
 .btn {
   margin-top: 40px;
   margin-bottom: 40px;
   color: #333;
   font-size: 20px;
-  width: 280px;
+  flex: 1;
   border: 4px solid #000;
   text-align: center;
   padding: 14px 0;
   background-color: #fff;
+  cursor: pointer;
 }
 
 .out {
@@ -424,8 +520,16 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 30px 0;
+  position: relative;
 }
-
+.outClose {
+  font-size: 14px;
+  font-weight: bold;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  cursor: pointer;
+}
 .outTitle {
   font-size: 26px;
 }
@@ -436,6 +540,7 @@ body {
   text-align: center;
   border: 2px solid #666;
   padding: 6px 0;
+  cursor: pointer;
 }
 
 .map {
@@ -517,5 +622,20 @@ body {
   color: #fff;
   border-radius: 4px;
   border: 2px solid #333;
+}
+
+
+.toast {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translate(-50%,0);
+  background-color: rgba(0,0,0,0.6);
+  padding: 6px 16px;
+  border-radius: 4px;
+  z-index: 101;
+}
+.toastText {
+  color: #fff;
 }
 </style>
