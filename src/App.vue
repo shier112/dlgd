@@ -1,14 +1,16 @@
 <script setup>
 import { ref,computed } from 'vue'
 const FILE_KEY = 'GAME_FILE'
+const BG_KEY = 'BG_COLOR'
 const level = ref(1)
 const isPlay = ref(false)
 const isOut = ref(false)
-const cardIcon = ['🐇','🥕','🐕','🐅','🥔','🍔','🍟','🦥','🐬','🐉','🦐','🦞','🕊️','🐧','🦚','🐖','🐏','🎈','🎉','🏀','🍍','🍌','🍊']
+const isOver = ref(false)
+const bgColor = ref(localStorage.getItem(BG_KEY) || '#C3FF8B')
+const cardIcon = ['baozi','pingguo','chengzi','qingjiao','jidan','xihongshi','mangguo','baocai','niunai','mianbao','huluobu','zhangyu','pangxie','yangcong','rou','jitui','huage','xianyu','mogu','qiezi','xilanhua','ningmeng','liulian','banli','sanwenyu','tudou','xigua','nangua','huolongguo','fantuan','zhusun','shanzhu','lanmei','shiliu','yezi','tiangua','mihoutao','boluo','taozi','xiangjiao','caomei','niuyouguo','hamigua','chelizi','li','bale','juzi','baixiangguo','putao','shaomai','yumi','pipa','yangtao','youzi','lianwu','wuhuaguo','wandou','huanggua','suantou','lizhi','boluomi','yuancaitou','baicai']
 const placeList = ref([])
 const cardList = ref([])
 const storeList = ref([])
-
 const rankList = ref([
   { avatar: 'http://inews.gtimg.com/newsapp_bt/0/9680744078/641',name: '只因' },
   { avatar: 'http://inews.gtimg.com/newsapp_bt/0/9680744080/641',name: '鸡鸡' },
@@ -86,12 +88,14 @@ const resetMap = () => {
   }else {
     const available = {} // 图标对象
     const levelNum = level.value * 6 // 每一种图标的数量
-    const levelType = level.value + 8 // 几种图标
-    const levelRank = level.value * 6 // 层数
+    const levelType = level.value + 6 // 几种图标
+    const levelRank = level.value * 3 // 层数
     const list = [...cardIcon]
     list.sort(() => Math.random() - 0.5).splice(0,levelType).forEach(e => {
       available[e] = levelNum
     })
+    // const numList = [...fillWithRandom(levelNum * levelType,levelRank)].sort((a,b) => a - b)
+    // console.log(numList)
     cardList.value = new Array(levelRank).fill().map((item,index) => {
       const rankList = []
       const cardNum = levelNum * levelType / levelRank
@@ -104,16 +108,26 @@ const resetMap = () => {
         let position = {}
         if(cardNum - 1 == i) {
           position = {
-            x: 0 + index * 0.18,
+            x: 0 + index * 0.15,
             y: 7,
           }
         }else if(cardNum - 2 == i) {
           position = {
-            x: 7 - index * 0.18,
+            x: 7 - index * 0.15,
             y: 7,
           }
+        }else if(level.value >= 4 && cardNum - 3 == i) {
+          position = {
+            x: 0 + index * 0.15,
+            y: 5.8,
+          }
+        }else if(level.value >= 4 && cardNum - 4 == i) {
+          position = {
+            x: 7 - index * 0.15,
+            y: 5.8,
+          }
         }else {
-          position = resetPosition(rankList)
+          position = resetPosition(rankList,level.value >= 4 ? 5 : 6)
         }
         rankList.push(position)
         return {
@@ -124,6 +138,22 @@ const resetMap = () => {
       })
     })
   }
+}
+
+// 随机生成数量
+const fillWithRandom = (result, layer,min = 2) => {
+  if (layer > result) return new Array(layer).fill(1)
+  const array = new Array(layer).fill(0)
+  array[layer - 1] = min
+  const sum = (arr) => arr.reduce((prev, item) => prev + item, 0)
+  for (let i = layer - 2; i >= 0; i--) {
+    if (i === 0) {
+      array[i] = result - sum(array)
+    } else {
+      array[i] = Math.ceil((result - sum(array) - Math.random() * layer) / 5)
+    }
+  }
+  return array.sort((a, b) => a - b)
 }
 
 // 随机生成图标
@@ -137,13 +167,15 @@ const resetIcon = (obj) => {
 }
 
 // 随机生成坐标
-const resetPosition = (list) => {
-  const x = Math.floor(Math.random() * 8) + (Math.random() - 0.5 > 0 ? 0.5 : 0)
-  const y = Math.floor(Math.random() * 6) + (Math.random() - 0.5 > 0 ? 0.5 : 0)
+const resetPosition = (list,maxY = 6) => {
+  let x = Math.floor(Math.random() * 8) + (Math.random() - 0.5 > 0 ? 0.5 : 0)
+  let y = Math.floor(Math.random() * maxY) + (Math.random() - 0.5 > 0 ? 0.5 : 0)
+  x = x > 7 ? 7 : x // 地图最大限制
+  y = y > maxY ? maxY : y
   if(list.filter(e => Math.abs(x - e.x) < 1 && Math.abs(y - e.y) < 1).length) {
-    return resetPosition(list)
+    return resetPosition(list,maxY)
   }else {
-    return {x: x > 7 ? 7 : x,y}
+    return {x,y}
   }
 }
 
@@ -160,7 +192,6 @@ const storeStyle = (i,index) => {
     left: `${index * 37.5}px`
   }
 }
-
 
 // 是否可以点击
 const cardIsChild = computed(() => {
@@ -210,9 +241,15 @@ const addToPlace = (item,i,index,status,storeObj) => {
     storeList.value[storeObj.i].splice(storeObj.index,1)
   }
   if(placeList.value.length === 7) {
+    localStorage.removeItem(FILE_KEY)
+    isFile.value = false
     return isOut.value = true
   }
   if(cardList.value.filter(e => e.length).length === 0 && storeList.value.filter(e => (e || []).length).length === 0) {
+    if(level.value == 10) {
+      isOver.value = true
+      return showToast('成功通关',2000)
+    }
     showToast('进入下一关,难度飙升',2000)
     level.value++
     resetMap()
@@ -310,10 +347,14 @@ const nextPlay = () => {
   lastItem.value = gameObj.lastItem
   isPlay.value = true
 }
+
+const saveBgColor = (e) => {
+  localStorage.setItem(BG_KEY,e.target.value)
+}
 </script>
 
 <template>
-  <div class="container">
+  <div class="container" :style="{backgroundColor: bgColor}">
     <p class="title">叮了个当</p>
     <template v-if="isPlay">
       <p class="desc">第{{level}}关</p>
@@ -321,20 +362,32 @@ const nextPlay = () => {
       <div class="map">
         <template v-for="(list,i) in cardList" :key="i">
           <template v-for="(item,index) in list" :key="item.id">
-            <div class="card" @click="addToPlace(item,i,index,cardIsChild(item,i))" :class="{cardMask: cardIsChild(item,i)}" :style="cardStyle(item,i)">{{item.icon}}</div>
+            <div class="card" @click="addToPlace(item,i,index,cardIsChild(item,i))" :class="{cardMask: cardIsChild(item,i)}" :style="cardStyle(item,i)">
+              <svg aria-hidden="true">
+                <use :xlink:href="`#icon-${item.icon}`"></use>
+              </svg>
+            </div>
           </template>
         </template>
       </div>
       <div class="store">
         <template v-for="(list,i) in storeList" :key="i">
           <template v-for="(item,index) in list" :key="index">
-            <div class="card" :style="storeStyle(i,index)" @click="addToPlace(item,item.i,null,false,{i,index})">{{item.icon}}</div>
+            <div class="card" :style="storeStyle(i,index)" @click="addToPlace(item,item.i,null,false,{i,index})">
+              <svg aria-hidden="true">
+                <use :xlink:href="`#icon-${item.icon}`"></use>
+              </svg>
+            </div>
           </template>
         </template>
       </div>
       <div class="place">
         <template v-for="(item,index) in placeList" :key="index">
-          <div class="card" style="position: relative;">{{item.icon}}</div>
+          <div class="card" style="position: relative;">
+            <svg aria-hidden="true">
+              <use :xlink:href="`#icon-${item.icon}`"></use>
+            </svg>
+          </div>
         </template>
       </div>
       <div class="prop">
@@ -349,12 +402,20 @@ const nextPlay = () => {
           <div class="outText" @click="onQuit">退出游戏</div>
         </div>
       </div>
+      <div class="out" v-if="isOver">
+        <div class="outBox">
+          <p class="outTitle">成功通关</p>
+          <div class="outText" @click="onResetPlay">重新开始</div>
+          <div class="outText" @click="onQuit">退出游戏</div>
+        </div>
+      </div>
       <div class="out" v-if="isSetup">
         <div class="outBox">
           <span class="outClose" @click="isSetup = !isSetup">关闭</span>
           <p class="outTitle">设置</p>
           <div class="outText" @click="saveFile">存档</div>
           <div class="outText" @click="clearFile">清除存档</div>
+          <input class="outText" type="color" v-model="bgColor" @blur="saveBgColor">
         </div>
       </div>
     </template>
@@ -565,6 +626,7 @@ body {
   left: 0;
   top: 0;
   user-select: none;
+  padding: 5px 5px 8px 5px;
 }
 .card::after {
   content: "";
