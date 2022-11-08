@@ -181,7 +181,7 @@ const resetPosition = (list,maxY = 6) => {
 
 const cardStyle = ({x,y},i) => {
   return {
-    transform: `translate(${x * 37.5}px,${y * 40}px)`,
+    transform: `translate(${x * 0.75}rem,${y * 0.8}rem)`,
     zIndex: i,
   }
 }
@@ -189,7 +189,7 @@ const cardStyle = ({x,y},i) => {
 const storeStyle = (i,index) => {
   return {
     zIndex: i,
-    left: `${index * 37.5}px`
+    left: `${index * 0.75}rem`
   }
 }
 
@@ -303,7 +303,7 @@ const onRandom = () => {
 
 const isToast = ref(false)
 const toastText = ref('')
-const showToast = (text = '',duration = 1000) => {
+const showToast = (text = '',duration = 20000) => {
   toastText.value = text
   isToast.value = true
   setTimeout(() => {
@@ -350,6 +350,50 @@ const nextPlay = () => {
 
 const saveBgColor = (e) => {
   localStorage.setItem(BG_KEY,e.target.value)
+}
+
+import axios from 'axios'
+
+const http = axios.create({
+  baseURL: 'http://localhost:3000/web/api/'
+})
+http.interceptors.response.use(
+  response => response.data
+)
+// 登录
+const isLogin = ref(false)
+const loginForm = ref({
+  username: 'a123456',
+  password: '123123aA',
+})
+const onLogin = async () => {
+  const { username,password } = loginForm.value
+  if(!username.length) return showToast('请输入用户名')
+  if(!password.length) return showToast('请输入密码')
+  const res = await http.post('login',loginForm.value)
+  showToast(res.message)
+  if(res.code === 200) {
+    isLogin.value = true
+  }
+}
+
+const isRegister = ref(false)
+const registerForm = ref({
+  username: 'a123456',
+  password: '123123aA',
+  enterPwd: '123123aA',
+})
+const onRegister = async () => {
+  const { username,password,enterPwd } = registerForm.value
+  if(!username.length) return showToast('请输入用户名')
+  if(!password.length) return showToast('请输入密码')
+  if(!enterPwd.length) return showToast('请输入确认密码')
+  if(password !== enterPwd) return showToast('两次密码不相同')
+  const res = await http.post('register',registerForm.value)
+  showToast(res.message)
+  if(res.code === 200) {
+    isRegister.value = false
+  }
 }
 </script>
 
@@ -420,26 +464,42 @@ const saveBgColor = (e) => {
       </div>
     </template>
     <template v-else>
-      <div class="rank">
-        <p class="rankTitle">排行榜</p>
-        <div class="rankList">
-          <template v-for="(item,index) in rankList" :key="index">
-            <div class="rankItem">
-              <img class="rankAvatar" src="./assets/641.webp" alt="">
-              <span class="rankText">{{item.name}}</span>
-              <span class="rankLevel">{{index+1}}</span>
-            </div>
-          </template>
+      <template v-if="isLogin">
+        <div class="rank">
+          <p class="rankTitle">排行榜</p>
+          <div class="rankList">
+            <template v-for="(item,index) in rankList" :key="index">
+              <div class="rankItem">
+                <img class="rankAvatar" src="./assets/641.webp" alt="">
+                <span class="rankText">{{item.name}}</span>
+                <span class="rankLevel">{{index+1}}</span>
+              </div>
+            </template>
+          </div>
         </div>
-      </div>
-      <div class="footer">
-        <div class="btn" @click="onPlay">开始游戏</div>
-        <div class="btn" v-if="isFile" @click="nextPlay">继续游戏</div>
-      </div>
+        <div class="footer">
+          <div class="btn" @click="onPlay">开始游戏</div>
+          <div class="btn" v-if="isFile" @click="nextPlay">继续游戏</div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="login" v-if="isRegister">
+          <p class="loginTitle">注册</p>
+          <input class="loginInput" v-model="registerForm.username" type="text" placeholder="账号">
+          <input class="loginInput" v-model="registerForm.password" type="password" placeholder="密码">
+          <input class="loginInput" v-model="registerForm.enterPwd" type="password" placeholder="二次输入密码">
+          <div class="loginBtn" @click="noRegister">注册</div>
+        </div>
+        <div class="login" v-else>
+          <p class="loginTitle">登录</p>
+          <input class="loginInput" v-model="loginForm.username" type="text" placeholder="账号">
+          <input class="loginInput" v-model="loginForm.password" type="password" placeholder="密码">
+          <p class="loginDesc" @click="isRegister = true">没有账号?去注册</p>
+          <div class="loginBtn" @click="onLogin">确认登录</div>
+        </div>
+      </template>
     </template>
-    <div class="toast" v-if="isToast">
-      <span class="toastText">{{toastText}}</span>
-    </div>
+    <div class="toast" v-if="isToast">{{toastText}}</div>
   </div>
 </template>
 
@@ -462,9 +522,53 @@ body {
   align-items: center;
   justify-content: center;
 }
+.login {
+  margin-top: 1.8rem;
+  width: 5.6rem;
+  background-color: #fff;
+  border: 4px solid #000;
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.6rem;
+}
+.login .loginTitle {
+  font-size: 0.54rem;
+  color: #333;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 0.4rem;
+  
+}
+.login .loginInput {
+  margin: 0.2rem 0;
+  padding: 0.2rem 0;
+  font-family: "阿里妈妈数黑体 Bold";
+  outline: none;
+  border: 0;
+  font-size: 0.40rem;
+  color: #333;
+  border-bottom: 1px solid #f2f2f2;
+}
+.login .loginDesc {
+  margin-top: 0.1rem;
+  font-size: 0.32rem;
+  text-align: right;
+  color: #666;
+}
+.login .loginBtn {
+  margin-top: 0.4rem;
+  color: #333;
+  font-size: 0.4rem;
+  flex: 1;
+  border: 4px solid #000;
+  text-align: center;
+  padding: 0.28rem 0;
+  background-color: #fff;
+  cursor: pointer;
+}
 .container {
-  width: 375px;
-  height: 667px;
+  width: 7.5rem;
+  height: 100vh;
   background-color: #C3FF8B;
   display: flex;
   flex-direction: column;
@@ -472,28 +576,28 @@ body {
   position: relative;
 }
 .title {
-  padding-top: 40px;
-  font-size: 36px;
+  padding-top: 0.8rem;
+  font-size: 0.72rem;
   color: #fff;
   font-weight: bold;
-  text-shadow: 0 4px 0px #000;
+  text-shadow: 0 0.08rem 0 #000;
 }
 .desc {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: 90px;
-  font-size: 14px;
+  top: 1.8rem;
+  font-size: 0.28rem;
   color: #333;
   font-weight: bold;
 }
 .setup {
-  font-size: 30px;
-  text-shadow: 0 2px 0px #000;
+  font-size: 0.6rem;
+  text-shadow: 0 0.04rem 0 #000;
   color: #fff;
   position: absolute;
-  right: 20px;
-  top: 20px;
+  right: 0.4rem;
+  top: 0.4rem;
   user-select: none;
   cursor: pointer;
 }
@@ -504,59 +608,59 @@ body {
   flex-direction: column;
 }
 .rankTitle {
-  font-size: 14px;
+  font-size: 0.28rem;
   color: #333;
   text-align: center;
-  margin-top: 20px;
-  margin-bottom: 20px;
+  margin-top: 0.4rem;
+  margin-bottom: 0.4rem;
 }
 .rankList {
   flex: 1;
   display: flex;
   flex-direction: column;
   background-color: rgba(0,0,0,0.3);
-  width: 240px;
-  padding: 10px;
+  width: 4.8rem;
+  padding: 0.2rem;
 }
 .rankItem {
   display: flex;
   align-items: center;
 }
 .rankAvatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 30px;
-  margin-right: 10px;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 0.6rem;
+  margin-right: 0.2rem;
 }
 .rankText {
-  font-size: 16px;
+  font-size: 0.32rem;
   color: #fff;
   flex: 1;
 }
 .rankLevel {
-  font-size: 14px;
+  font-size: 0.28rem;
   color: #fff;
 }
 
 .footer {
-  width: 280px;
+  width: 5.6rem;
   display: flex;
   justify-content: space-between;
 }
 
 .footer .btn+.btn {
-  margin-left: 10px;
+  margin-left: 0.2rem;
 }
 
 .btn {
-  margin-top: 40px;
-  margin-bottom: 40px;
+  margin-top: 0.8rem;
+  margin-bottom: 0.8rem;
   color: #333;
-  font-size: 20px;
+  font-size: 0.4rem;
   flex: 1;
   border: 4px solid #000;
   text-align: center;
-  padding: 14px 0;
+  padding: 0.28rem 0;
   background-color: #fff;
   cursor: pointer;
 }
@@ -574,51 +678,52 @@ body {
   align-items: center;
 }
 .outBox {
-  width: 260px;
+  width: 5.2rem;
   background-color: #fff;
   border: 4px solid #000;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 30px 0;
+  padding: 0.6rem 0;
   position: relative;
 }
 .outClose {
-  font-size: 14px;
+  font-size: 0.28rem;
   font-weight: bold;
   position: absolute;
-  right: 10px;
-  top: 10px;
+  right: 0.2rem;
+  top: 0.2rem;
   cursor: pointer;
 }
 .outTitle {
-  font-size: 26px;
+  font-size: 0.52rem;
 }
 .outText {
-  margin-top: 20px;
-  font-size: 18px;
-  width: 200px;
+  margin-top: 0.4rem;
+  font-size: 0.36rem;
+  width: 4rem;
   text-align: center;
   border: 2px solid #666;
-  padding: 6px 0;
+  padding: 0.12rem 0;
   cursor: pointer;
 }
 
 .map {
-  margin-top: 40px;
-  width: 300px;
-  height: 320px;
+  margin-top: 0.8rem;
+  width: 6rem;
+  /* height: 6.4rem; */
+  flex: 1;
   position: relative;
 }
 
 .card {
-  width: 37.5px;
-  height: 40px;
+  width: 0.75rem;
+  height: 0.8rem;
   display: flex;
   justify-content: center;
-  font-size: 24px;
+  font-size: 0.48rem;
   background-color: #F5FFCC;
-  border-radius: 4px;
+  border-radius: 0.08rem;
   border: 2px solid #333;
   position: absolute;
   overflow: hidden;
@@ -626,11 +731,11 @@ body {
   left: 0;
   top: 0;
   user-select: none;
-  padding: 5px 5px 8px 5px;
+  padding: 0.1rem 0.1rem 0.16rem 0.1rem;
 }
 .card::after {
   content: "";
-  width: 37.5px;
+  width: 0.75rem;
   height: 4px;
   background-color: #72A311;
   position: absolute;
@@ -640,8 +745,8 @@ body {
 
 .cardMask::before {
   content: "";
-  width: 37.5px;
-  height: 40px;
+  width: 0.75rem;
+  height: 0.8rem;
   position: absolute;
   left: 0;
   top: 0;
@@ -649,9 +754,9 @@ body {
 }
 
 .store {
-  margin-top: 30px;
-  height: 40px;
-  width: 112.5px;
+  margin-top: 0.6rem;
+  height: 0.8rem;
+  width: 2.25rem;
   display: flex;
   position: relative;
   /* background-color: #f00; */
@@ -659,45 +764,45 @@ body {
 
 .place {
   display: flex;
-  margin-top: 20px;
-  width: 271.5px;
-  height: 48px;
+  margin-top: 0.4rem;
+  width: 5.43rem;
+  height: 0.96rem;
   background-color: #965919;
-  border-radius: 4px;
+  border-radius: 0.08rem;
   border: 4px solid #C2822D;
 }
 
 .prop {
-  margin-top: 20px;
-  width: 271.5px;
-  height: 40px;
+  margin-top: 0.4rem;
+  margin-bottom: 0.6rem;
+  width: 5.43rem;
+  height: 0.8rem;
   display: flex;
   justify-content: space-between;
 }
 .propText {
-  width: 40px;
-  height: 40px;
-  line-height: 36px;
+  width: 0.8rem;
+  height: 0.8rem;
+  line-height: 0.72rem;
   background-color: #20A3FD;
   text-align: center;
-  font-size: 12px;
+  font-size: 0.24rem;
   color: #fff;
-  border-radius: 4px;
+  border-radius: 0.08rem;
   border: 2px solid #333;
 }
 
 
 .toast {
   position: absolute;
-  top: 40px;
+  top: 0.8rem;
   left: 50%;
   transform: translate(-50%,0);
   background-color: rgba(0,0,0,0.6);
-  padding: 6px 16px;
-  border-radius: 4px;
+  padding: 0.12rem 0.2rem;
+  border-radius: 0.08rem;
   z-index: 101;
-}
-.toastText {
+  font-size: 0.32rem;
   color: #fff;
 }
 </style>
